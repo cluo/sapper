@@ -21,7 +21,7 @@ function create_path() {
 
 function clone_source() {
     cd $base_path;
-    git clone $url;
+    git clone --depth=1 $url;
     cd -;
 
     project=`echo $url|sed 's/.*://'|sed 's/\.git//'`;
