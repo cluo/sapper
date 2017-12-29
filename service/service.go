@@ -94,7 +94,7 @@ func (s *Service) Register(obj interface{}) error {
 
 	url := path + "/" + name
 
-    //log.Debugf("%s url:%v, method:%d", name, url, t.NumMethod())
+	//log.Debugf("%s url:%v, method:%d", name, url, t.NumMethod())
 
 	for _, k := range []string{"Get", "Post", "Put", "Delete"} {
 		if m, ok := t.MethodByName(k); ok {
