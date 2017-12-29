@@ -8,4 +8,3 @@ ENV LDFLAGS {{.LDFLAGS}}
 copy src src
 
 RUN cd $BASE_PATH; go install -ldflags "$LDFLAGS"
-#RUN cd $BASE_PATH; go build -o $GOPATH/bin/$APP -ldflags "$LDFLAGS"

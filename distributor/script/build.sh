@@ -4,7 +4,7 @@ set -e
 
 url=$1
 
-framework_package="github.com/dearcode/sapper/goapi"
+framework_package="github.com/dearcode/sapper/service"
 
 function convert_url() {
     if [[ "$url" =~ "http://" ]]

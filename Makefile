@@ -1,6 +1,6 @@
 cmd := $(shell ls cmd/)
 
-all: lint $(cmd)
+all: init lint $(cmd)
 
 GitHash := github.com/dearcode/sapper/util.GitHash
 GitTime := github.com/dearcode/sapper/util.GitTime
@@ -17,6 +17,8 @@ source := $(shell ls -ld */|awk '$$NF !~ /bin\/|logs\/|config\/|vendor\/|web\/|d
 golint:
 	go get github.com/golang/lint/golint
 
+init:
+	if [[ -d _vendor ]]; then mv _vendor vendor; fi
 
 lint: golint
 	for path in $(source); do golint "$$path..."; done;

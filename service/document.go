@@ -200,15 +200,15 @@ func (d *document) GET(w http.ResponseWriter, r *http.Request) {
 	server.SendData(w, d)
 }
 
-func (p *document) add(name, url string, rm reflect.Method) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+func (d *document) add(name, url string, rm reflect.Method) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	log.Debugf("Module:%v Method:%v %v", name, rm.Name, rm.Type)
-	md, ok := p.Modules[name]
+	md, ok := d.Modules[name]
 	if !ok {
 		md = module{Methods: make(map[string]*method), URL: url}
-		p.Modules[name] = md
+		d.Modules[name] = md
 	}
 
 	m, ok := md.Methods[rm.Name]
@@ -225,13 +225,13 @@ func (p *document) add(name, url string, rm reflect.Method) {
 }
 
 //methods 返回所有对外接口.
-func (p *document) methods() []string {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+func (d *document) methods() []string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	var ms []string
 
-	for _, md := range p.Modules {
+	for _, md := range d.Modules {
 		ms = append(ms, md.URL)
 	}
 
