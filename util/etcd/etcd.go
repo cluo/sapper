@@ -103,6 +103,7 @@ func (e *Client) CAS(cmpKey, cmpValue, key, value string) error {
 
 //WatchPrefix 监控指定前缀.
 func (e *Client) WatchPrefix(key string) []*clientv3.Event {
+	//TODO 这个要改成回调函数方式执行
 	watcher := clientv3.NewWatcher(e.client)
 	defer watcher.Close()
 

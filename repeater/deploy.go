@@ -33,27 +33,20 @@ func (d *deploy) start() {
 	for {
 		log.Debugf("begin watch key:%s", apigatePrefix)
 		es := d.c.WatchPrefix(apigatePrefix)
-		log.Infof("end watch, event:%+v", es)
-		ks, err := d.c.List(apigatePrefix)
-		if err != nil {
-			log.Errorf("etcd list:%s error:%v", apigatePrefix, errors.ErrorStack(err))
-			continue
-		}
-
-		for k, v := range ks {
+		for _, e := range es {
 			app := meta.MicroAPP{}
-			if err := json.Unmarshal([]byte(v), &app); err != nil {
-				log.Errorf("invalid data:%s", v)
+			if err := json.Unmarshal(e.Kv.Value, &app); err != nil {
+				log.Errorf("invalid k:%s, data:%s, create:%v, modify:%v", e.Kv.Key, e.Kv.Value, e.IsCreate(), e.IsModify())
 				continue
 			}
 
-			log.Debugf("key:%v, app:%#v", k, app)
+			log.Debugf("key:%s, app:%#v, create:%v, modify:%v", e.Kv.Key, app, e.IsCreate(), e.IsModify())
 			d.register(app)
 		}
 	}
 }
 
-func (d *deploy) register(app meta.MMicroAPP) {
+func (d *deploy) register(app meta.MicroAPP) {
 
 }
 
