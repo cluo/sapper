@@ -47,12 +47,13 @@ func (d *deploy) start() {
 				continue
 			}
 
-			log.Debugf("key:%v, app:%v", k, app)
+			log.Debugf("key:%v, app:%#v", k, app)
+			d.register(app)
 		}
 	}
 }
 
-func (d *deploy) register() {
+func (d *deploy) register(app meta.MMicroAPP) {
 
 }
 

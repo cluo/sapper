@@ -57,9 +57,8 @@ func (k *keepalive) start(ln net.Listener, doc document) error {
 	// 获取本机服务地址
 	local := util.LocalAddr()
 
-	//因为服务是异步启动的，所以有一次获取不到绑定的端口.
 	la := ln.Addr().String()
-	port := la[strings.LastIndex(la, ":"):]
+	port := la[strings.LastIndex(la, ":")+1:]
 	addr := local + port
 	log.Infof("listener addr:%v", addr)
 
