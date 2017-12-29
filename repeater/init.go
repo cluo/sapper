@@ -19,10 +19,6 @@ var (
 type repeater struct {
 }
 
-//Init 返回验证模块
-func Init() {
-}
-
 // ServerInit 初始化HTTP接口.
 func ServerInit() error {
 	if err := config.Load(); err != nil {
@@ -37,6 +33,13 @@ func ServerInit() error {
 	}
 
 	Server = &repeater{}
+
+	deploy, err := newDeploy()
+	if err != nil {
+		return errors.Trace(err)
+	}
+
+	go deploy.start()
 
 	return nil
 }

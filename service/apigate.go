@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"flag"
 	"net"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"github.com/juju/errors"
 	"github.com/zssky/log"
 
+	"github.com/dearcode/sapper/meta"
 	"github.com/dearcode/sapper/service/debug"
 	"github.com/dearcode/sapper/util"
 	"github.com/dearcode/sapper/util/etcd"
@@ -26,27 +26,6 @@ var (
 
 type keepalive struct {
 	etcd *etcd.Client
-}
-
-type MicroAPP struct {
-	Version string
-	Host    string
-	Port    int
-	PID     int
-}
-
-func newMicroAPP(version, host string, port, pid int) *MicroAPP {
-	return &MicroAPP{
-		Version: version,
-		PID:     pid,
-		Host:    host,
-		Port:    port,
-	}
-}
-
-func (m MicroAPP) String() string {
-	b, _ := json.Marshal(m)
-	return string(b)
 }
 
 func newKeepalive() *keepalive {
@@ -88,10 +67,9 @@ func (k *keepalive) start(ln net.Listener, doc document) error {
 	for _, m := range doc.methods() {
 		key := apigatePrefix + m + "/" + addr
 		p, _ := strconv.Atoi(port)
-		val := newMicroAPP(debug.GitHash, local, p, os.Getpid()).String()
+		val := meta.NewMicroAPP(debug.GitHash, local, p, os.Getpid()).String()
 
-		_, err := k.etcd.Keepalive(key, val)
-		if err != nil {
+		if _, err := k.etcd.Keepalive(key, val); err != nil {
 			log.Errorf("etcd Keepalive key:%v, val:%v, error:%v", key, val, errors.ErrorStack(err))
 			return errors.Trace(err)
 		}
