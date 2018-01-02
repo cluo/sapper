@@ -357,3 +357,58 @@ func (id *interfaceDeploy) PUT(w http.ResponseWriter, r *http.Request) {
 
 	log.Debugf("deploy Interface:%d success", vars.ID)
 }
+
+type interfaceRegister struct {
+}
+
+func (ir *interfaceRegister) POST(w http.ResponseWriter, r *http.Request) {
+	vars := struct {
+		Name      string
+		ProjectID int64
+		Path      string
+		Method    string
+		Backend   string
+	}{}
+
+	if err := server.ParseJSONVars(r, &vars); err != nil {
+		log.Errorf("invalid req:%+v", r)
+		server.SendResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	i := meta.Interface{
+		Name:      vars.Name,
+		Path:      vars.Path,
+		ProjectID: vars.ProjectID,
+		Backend:   vars.Backend,
+	}
+
+	switch vars.Method {
+	case http.MethodGet:
+		i.Method = server.GET
+	case http.MethodPost:
+		i.Method = server.POST
+	case http.MethodPut:
+		i.Method = server.PUT
+	case http.MethodDelete:
+		i.Method = server.DELETE
+	}
+
+	db, err := mdb.GetConnection()
+	if err != nil {
+		log.Errorf("GetConnection error:%v", errors.ErrorStack(err))
+		response(w, Response{Status: http.StatusInternalServerError, Message: err.Error()})
+		return
+	}
+	defer db.Close()
+
+	id, err := orm.NewStmt(db, "interface").Insert(&i)
+	if err != nil {
+		log.Errorf("insert interface:%+v, error:%v", i, err)
+		server.SendResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	server.SendResponseData(w, id)
+	log.Debugf("new interface:%+v, id:%v", i, id)
+}

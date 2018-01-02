@@ -29,15 +29,20 @@ type dbConfig struct {
 	Charset string
 }
 
+type managerConfig struct {
+	URL string
+}
+
 type etcdConfig struct {
 	Hosts string
 }
 
 type repeaterConfig struct {
-	Cache  cacheConfig
-	Server serverConfig
-	DB     dbConfig
-	ETCD   etcdConfig
+	Cache   cacheConfig
+	Server  serverConfig
+	DB      dbConfig
+	ETCD    etcdConfig
+	Manager managerConfig
 }
 
 //Load 加载配置文件.

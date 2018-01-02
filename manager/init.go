@@ -42,6 +42,7 @@ func ServerInit() error {
 	server.RegisterPath(&project{}, "/project/")
 
 	server.RegisterPath(&interfaceAction{}, "/interface/")
+	server.RegisterPath(&interfaceRegister{}, "/interface/register/")
 	server.RegisterPath(&interfaceRun{}, "/interface/run")
 	server.RegisterPath(&interfaceInfo{}, "/interface/info")
 	server.RegisterPath(&interfaceDeploy{}, "/interface/deploy")

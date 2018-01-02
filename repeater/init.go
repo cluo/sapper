@@ -34,12 +34,16 @@ func ServerInit() error {
 
 	Server = &repeater{}
 
-	deploy, err := newDeploy()
+	bs, err := newBackendService()
 	if err != nil {
 		return errors.Trace(err)
 	}
 
-	go deploy.start()
+	go bs.start()
+
+	if err := bs.load(); err != nil {
+		return errors.Trace(err)
+	}
 
 	return nil
 }

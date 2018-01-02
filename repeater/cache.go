@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/dearcode/crab/cache"
 	"github.com/juju/errors"
@@ -18,15 +17,13 @@ import (
 )
 
 type dbCache struct {
-	etcd           *etcd.Client
-	cache          *cache.Cache
-	selIface       *sql.Stmt
-	selVar         *sql.Stmt
-	selApp         *sql.Stmt
-	selRelation    *sql.Stmt
-	instStats      *sql.Stmt
-	instErrorStats *sql.Stmt
-	dbc            *sql.DB
+	etcd        *etcd.Client
+	cache       *cache.Cache
+	selIface    *sql.Stmt
+	selVar      *sql.Stmt
+	selApp      *sql.Stmt
+	selRelation *sql.Stmt
+	dbc         *sql.DB
 	sync.RWMutex
 }
 
@@ -53,15 +50,6 @@ func (dc *dbCache) closeAll() {
 		dc.selRelation = nil
 	}
 
-	if dc.instStats != nil {
-		dc.instStats.Close()
-		dc.instStats = nil
-	}
-
-	if dc.instErrorStats != nil {
-		dc.instErrorStats.Close()
-		dc.instErrorStats = nil
-	}
 }
 
 func (dc *dbCache) conectDB() error {
@@ -92,21 +80,13 @@ func (dc *dbCache) conectDB() error {
 		return errors.Trace(err)
 	}
 
-	if dc.instStats, err = dc.dbc.Prepare("insert into stats (iface_id, app_id, cnt, cost) values (?,?,?,?)"); err != nil {
-		return errors.Trace(err)
-	}
-
-	if dc.instErrorStats, err = dc.dbc.Prepare("insert into stats_error (session, iface_id, app_id, info, ctime) values (?,?,?,?,?)"); err != nil {
-		return errors.Trace(err)
-	}
-
 	return nil
 }
 
 var (
-	errInvalidPath   = errors.New("invalid path")
-	errInvalidToken  = errors.New("invalid token")
-	errIfaceNotFound = errors.New("iterface not found")
+	errInvalidPath  = errors.New("invalid path")
+	errInvalidToken = errors.New("invalid token")
+	errNotFound     = errors.New("not found")
 )
 
 const (
@@ -146,40 +126,6 @@ func (dc *dbCache) dbQuery(call func() error) (err error) {
 	return
 }
 
-func (dc *dbCache) insertDB(s *sql.Stmt, arg []interface{}) (id int64, err error) {
-	var res sql.Result
-
-	if res, err = dc.executeDB(s, arg); err != nil {
-		return
-	}
-
-	if id, err = res.LastInsertId(); err != nil {
-		return
-	}
-	return
-}
-
-func (dc *dbCache) executeDB(s *sql.Stmt, arg []interface{}) (res sql.Result, err error) {
-	dc.Lock()
-	defer dc.Unlock()
-
-	for i := 0; i < maxRetry; i++ {
-		if dc.dbc != nil {
-			if res, err = s.Exec(arg...); err != nil {
-				log.Errorf("retry:%v exec error:%v", i, err.Error())
-				continue
-			}
-			return
-		}
-
-		if err = dc.conectDB(); err != nil {
-			log.Errorf("conenct db error:%s", err.Error())
-		}
-	}
-
-	return
-}
-
 func (dc *dbCache) queryDB(s *sql.Stmt, arg []interface{}, res []interface{}) error {
 	dc.Lock()
 	defer dc.Unlock()
@@ -208,7 +154,7 @@ func (dc *dbCache) queryDB(s *sql.Stmt, arg []interface{}, res []interface{}) er
 	defer rows.Close()
 
 	if !rows.Next() {
-		return errors.Annotatef(errIfaceNotFound, "%v", arg)
+		return errors.Annotatef(errNotFound, "%v", arg)
 	}
 
 	if err = rows.Scan(res...); err != nil {
@@ -247,24 +193,6 @@ func (dc *dbCache) validateRelation(appID, ifaceID int64) error {
 		return errors.Trace(err)
 	}
 	dc.cache.Add(key, id)
-	return nil
-}
-
-func (dc *dbCache) insertStats(iface, app int64, count int, tms int64) error {
-	id, err := dc.insertDB(dc.instStats, []interface{}{iface, app, count, tms})
-	if err != nil {
-		return errors.Trace(err)
-	}
-	log.Debugf("insert stats:%v", id)
-	return nil
-}
-
-func (dc *dbCache) insertErrorStats(session string, iface, app int64, info string, tm time.Time) error {
-	id, err := dc.insertDB(dc.instErrorStats, []interface{}{session, iface, app, info, tm})
-	if err != nil {
-		return errors.Trace(err)
-	}
-	log.Debugf("insert error stats:%v", id)
 	return nil
 }
 
@@ -314,15 +242,4 @@ func (dc *dbCache) getVariable(id int64) ([]*meta.Variable, error) {
 	dc.cache.Add(key, vs)
 
 	return vs, nil
-}
-
-//getRealAddress 根据后端URL获取真正服务器地址.
-func (dc *dbCache) getRealAddress(backend string) ([]string, error) {
-	key := fmt.Sprintf("\x03%s", backend)
-
-	if vs := dc.cache.Get(key); vs != nil {
-		return vs.([]string), nil
-	}
-
-	return nil, nil
 }

@@ -3,6 +3,7 @@
 set -e
 
 url=$1
+key=$2
 
 framework_package="github.com/dearcode/sapper/service"
 
@@ -43,10 +44,8 @@ function create_dockerfile() {
     package=`echo $url|sed 's/.*@//'|sed 's/\.git//'|sed 's/:/\//'`;
     package_in_vendor="$package/vendor/$framework_package"
     cp Dockerfile.tpl Dockerfile
-    sed -i "s#{{.APP}}#\"$app\"#" Dockerfile
-    sed -i "s#{{.PROJECT}}#\"$project\"#" Dockerfile
     sed -i "s#{{.BASE_PATH}}#\"$base_path\"#" Dockerfile
-    local ldflags="\'-X \"$package_in_vendor/debug.GitHash=$git_hash\" -X \"$package_in_vendor/debug.GitTime=$git_time\" -X \"$package_in_vendor/debug.GitMessage=$git_message\"\'"
+    local ldflags="\' -X \"$package_in_vendor/debug.ServiceKey=$key\" -X \"$package_in_vendor/debug.GitHash=$git_hash\" -X \"$package_in_vendor/debug.GitTime=$git_time\" -X \"$package_in_vendor/debug.GitMessage=$git_message\"\'"
     sed -i "s#{{.LDFLAGS}}#$ldflags#" Dockerfile
 }
 
