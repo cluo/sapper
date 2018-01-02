@@ -36,17 +36,25 @@ func (d *deploy) start() {
 		for _, e := range es {
 			app := meta.MicroAPP{}
 			if err := json.Unmarshal(e.Kv.Value, &app); err != nil {
-				log.Errorf("invalid k:%s, data:%s, create:%v, modify:%v", e.Kv.Key, e.Kv.Value, e.IsCreate(), e.IsModify())
+				log.Errorf("invalid k:%s, data:%s, event:%v", e.Kv.Key, e.Kv.Value, e.Type.String())
 				continue
 			}
 
-			log.Debugf("key:%s, app:%#v, create:%v, modify:%v", e.Kv.Key, app, e.IsCreate(), e.IsModify())
+			log.Debugf("key:%s, app:%#v, event:%v", e.Kv.Key, app, e.Type.String())
 			d.register(app)
 		}
 	}
 }
 
+//unregister 如果etcd中事务是删除，这里就去管理处删除.
+func (d *deploy) unregister(app meta.MicroAPP) {
+	log.Debugf("will unregister:%v", app)
+
+}
+
+//register 到管理处添加接口, 肯定是多个repeater同时上报的，所以添加操作要指定版本信息.
 func (d *deploy) register(app meta.MicroAPP) {
+	log.Debugf("will register:%v", app)
 
 }
 

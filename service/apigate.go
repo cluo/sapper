@@ -59,12 +59,10 @@ func (k *keepalive) start(ln net.Listener, doc document) error {
 
 	la := ln.Addr().String()
 	port := la[strings.LastIndex(la, ":")+1:]
-	addr := local + port
-	log.Infof("listener addr:%v", addr)
 
 	//注册所有接口
 	for _, m := range doc.methods() {
-		key := apigatePrefix + m + "/" + addr
+		key := apigatePrefix + m + "/" + local + "/" + port
 		p, _ := strconv.Atoi(port)
 		val := meta.NewMicroAPP(debug.GitHash, local, p, os.Getpid()).String()
 
