@@ -17,6 +17,7 @@ type serverConfig struct {
 	Domain    string
 	Script    string
 	BuildPath string
+	SecretKey string
 }
 
 type dbConfig struct {

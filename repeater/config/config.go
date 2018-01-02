@@ -13,7 +13,8 @@ var (
 )
 
 type serverConfig struct {
-	Timeout int
+	Timeout   int
+	SecretKey string
 }
 
 type cacheConfig struct {

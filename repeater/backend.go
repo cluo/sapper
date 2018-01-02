@@ -14,6 +14,7 @@ import (
 
 	"github.com/dearcode/sapper/meta"
 	"github.com/dearcode/sapper/repeater/config"
+	"github.com/dearcode/sapper/util"
 	"github.com/dearcode/sapper/util/etcd"
 )
 
@@ -118,7 +119,7 @@ func (bs *backendService) unregister(name, host string, port int) {
 type managerClient struct {
 }
 
-func (mc *managerClient) interfaceRegister() error {
+func (mc *managerClient) interfaceRegister(app meta.MicroAPP) error {
 	url := fmt.Sprintf("%s/interface/register/", config.Repeater.Manager.URL)
 	req := struct {
 		Name      string
@@ -145,6 +146,23 @@ func (mc *managerClient) interfaceRegister() error {
 	log.Debugf("register success, id:%v", resp.Data)
 
 	return nil
+}
+
+const (
+	httpConnectTimeout = 60
+)
+
+func (bs *backendService) parseDocument(app meta.MicroAPP) error {
+	/*
+		url := fmt.Sprintf("http://%s:%d/document/", app.Host, app.Port)
+		buf, err := client.New(httpConnectTimeout).Get(url, nil, nil)
+		if err != nil {
+			return errors.Trace(err)
+		}
+	*/
+
+	return nil
+
 }
 
 //register 到管理处添加接口, 肯定是多个repeater同时上报的，所以添加操作要指定版本信息.
@@ -188,4 +206,22 @@ func (bs *backendService) getMicroAPPs(name string) ([]meta.MicroAPP, error) {
 
 func (bs *backendService) stop() {
 	bs.etcd.Close()
+}
+
+func parseProjectID(key string) (int64, error) {
+	aesKey := []byte(config.Repeater.Server.SecretKey)
+	aesKey = append(aesKey, []byte(strings.Repeat("\x00", 8-len(aesKey)%8))...)
+
+	buf, err := util.AesDecrypt(key, aesKey)
+	if err != nil {
+		return 0, errors.Trace(err)
+	}
+
+	var id int64
+	_, err = fmt.Sscanf(string(buf), "%x.", &id)
+	if err != nil {
+		return 0, errors.Trace(err)
+	}
+
+	return id, nil
 }

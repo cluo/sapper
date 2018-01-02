@@ -25,8 +25,8 @@
     "util",
     "validation"
   ]
-  revision = "7e5494ecf1e736058ebf377a087e1f21062e13ad"
-  version = "v1.2.0"
+  revision = "f960b73894ed893d4fd75afcf37da6791231c687"
+  version = "v1.2.2"
 
 [[projects]]
   name = "github.com/go-sql-driver/mysql"
@@ -176,6 +176,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "ffffdac5c4aefd417926613186de046a362b3927ec118db0dbdc66a56f4811ba"
+  inputs-digest = "6a76177548ec3685a13c84a4d1a5a80fa2cbb7d0ddcd93074e12ba47772961cd"
   solver-name = "gps-cdcl"
   solver-version = 1

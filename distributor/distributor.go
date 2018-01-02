@@ -26,8 +26,8 @@ type distributorLogs struct {
 
 type distributor struct {
 	ID         int64
-	ModuleID   int64
-	Module     module `db_table:"one"`
+	ProjectID  int64
+	Project    project `db_table:"one"`
 	State      int
 	Server     string
 	CreateTime string `db_default:"now()"`
@@ -36,7 +36,7 @@ type distributor struct {
 //POST 编译并更新指定项目.
 func (d *distributor) POST(w http.ResponseWriter, r *http.Request) {
 	vars := struct {
-		ModuleID int64
+		ProjectID int64
 	}{}
 
 	if err := server.ParseJSONVars(r, &vars); err != nil {
@@ -44,7 +44,7 @@ func (d *distributor) POST(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	t, err := newTask(vars.ModuleID)
+	t, err := newTask(vars.ProjectID)
 	if err != nil {
 		log.Errorf("newWorkspace error:%v", errors.ErrorStack(err))
 		server.SendResponse(w, http.StatusBadRequest, err.Error())

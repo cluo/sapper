@@ -12,7 +12,7 @@ LDFLAGS += -X "$(GitTime)=$(shell git log --pretty=format:'%cd' -1)"
 LDFLAGS += -X "$(GitMessage)=$(shell git log --pretty=format:'%cn %s %b' -1)"
 
 files := $$(find . -name '*.go' | grep -vE 'vendor')
-source := $(shell ls -ld */|awk '$$NF !~ /bin\/|logs\/|config\/|vendor\/|web\/|docs\// {printf $$NF" "}')
+source := $(shell ls -ld */|awk '$$NF !~ /bin\/|logs\/|config\/|_vendor\/|vendor\/|web\/|docs\// {printf $$NF" "}')
 
 golint:
 	go get github.com/golang/lint/golint

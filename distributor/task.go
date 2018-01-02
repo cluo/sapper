@@ -40,28 +40,28 @@ var (
 )
 
 type task struct {
-	wg    sync.WaitGroup
-	ID    string
-	path  string
-	db    *sql.DB
-	m     module
-	d     distributor
-	state int
-	logID int64
+	wg      sync.WaitGroup
+	ID      string
+	path    string
+	db      *sql.DB
+	project project
+	d       distributor
+	state   int
+	logID   int64
 }
 
-func newTask(moduleID int64) (*task, error) {
-	var m module
+func newTask(projectID int64) (*task, error) {
+	var p project
 
 	db, err := mdb.GetConnection()
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
-	if err = orm.NewStmt(db, "module").Where("id=%v", moduleID).Query(&m); err != nil {
+	if err = orm.NewStmt(db, "project").Where("id=%v", projectID).Query(&p); err != nil {
 		return nil, errors.Trace(err)
 	}
-	log.Debugf("module:%#v", m)
+	log.Debugf("project:%#v", p)
 
 	path := fmt.Sprintf("%s/%v", config.Distributor.Server.BuildPath, time.Now().UnixNano())
 	if err = os.MkdirAll(path, os.ModePerm); err != nil {
@@ -77,8 +77,8 @@ func newTask(moduleID int64) (*task, error) {
 	}
 
 	d := distributor{
-		ModuleID: moduleID,
-		Server:   util.LocalAddr(),
+		ProjectID: projectID,
+		Server:    util.LocalAddr(),
 	}
 
 	if d.ID, err = orm.NewStmt(db, "distributor").Insert(&d); err != nil {
@@ -86,7 +86,7 @@ func newTask(moduleID int64) (*task, error) {
 		return nil, errors.Trace(err)
 	}
 
-	return &task{db: db, m: m, d: d, ID: uuid.String(), path: path}, nil
+	return &task{db: db, project: p, d: d, ID: uuid.String(), path: path}, nil
 }
 
 func (t *task) updateState(state int) {
@@ -186,16 +186,16 @@ func (t *task) install() error {
 	}
 	defer os.Chdir(oldPath)
 
-	tarFile := t.m.Name + ".tar.gz"
+	tarFile := t.project.Name + ".tar.gz"
 
-	cmd := fmt.Sprintf("tar -C bin -czf %s %s", tarFile, t.m.Name)
+	cmd := fmt.Sprintf("tar -C bin -czf %s %s", tarFile, t.project.Name)
 	if err := execSystemCmdWait(cmd, t.writeLogs); err != nil {
 		return errors.Annotatef(err, cmd)
 	}
 
-	cmd = fmt.Sprintf("hostname; tar xzf %s; killall %v; nohup ./%v -h : > %v.log 2>&1 &", tarFile, t.m.Name, t.m.Name, t.m.Name)
+	cmd = fmt.Sprintf("hostname; tar xzf %s; killall %v; nohup ./%v -h : > %v.log 2>&1 &", tarFile, t.project.Name, t.project.Name, t.project.Name)
 
-	for _, d := range t.m.Deploy {
+	for _, d := range t.project.Deploy {
 		sc := ssh.NewClient(d.Server, 22, "root", "1qaz@WSX")
 		log.Debugf("%v begin, upload file:%v", t, tarFile)
 		if err = sc.Upload(tarFile, tarFile); err != nil {
@@ -237,7 +237,7 @@ func (t *task) compile() error {
 	}
 	defer os.Chdir(oldPath)
 
-	cmd := fmt.Sprintf("./build.sh %s", t.m.URL)
+	cmd := fmt.Sprintf("./build.sh %s %s", t.project.Source, t.project.key())
 
 	if err = execSystemCmdWait(cmd, t.writeLogs); err != nil {
 		return errors.Annotatef(err, cmd)

@@ -197,7 +197,7 @@ func newDocument() document {
 }
 
 func (d *document) GET(w http.ResponseWriter, r *http.Request) {
-	server.SendData(w, d)
+	server.SendData(w, d.Modules)
 }
 
 func (d *document) add(name, url string, rm reflect.Method) {
