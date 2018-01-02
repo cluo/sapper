@@ -1,6 +1,6 @@
 cmd := $(shell ls cmd/)
 
-all: init lint $(cmd)
+all: init lint $(cmd) deinit
 
 GitHash := github.com/dearcode/sapper/util.GitHash
 GitTime := github.com/dearcode/sapper/util.GitTime
@@ -19,6 +19,9 @@ golint:
 
 init:
 	if [[ -d _vendor ]]; then mv _vendor vendor; fi
+
+deinit:
+	if [[ -d vendor ]]; then mv vendor _vendor; fi
 
 lint: golint
 	for path in $(source); do golint "$$path..."; done;

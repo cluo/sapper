@@ -17,16 +17,19 @@ import (
 	"github.com/dearcode/sapper/service/debug"
 )
 
+//RequestHeader 默认请求头.
 type RequestHeader struct {
 	Session string
 	Request http.Request
 }
 
+//ResponseHeader 默认返回头.
 type ResponseHeader struct {
 	Status  int
 	Message string `json:",omitempty"`
 }
 
+//Service 一个服务对象.
 type Service struct {
 	doc       document
 	docView   docView
