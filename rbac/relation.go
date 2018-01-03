@@ -344,7 +344,7 @@ func RelationRoleUserQuery(appID, roleID int64, email, sort, order string, offse
 func UnrelatedResourceRoles(appID, resourceID int64, email, sort, order string, offset, limit int) (int, []meta.Role, error) {
 	where := fmt.Sprintf("id NOT in (select role_resource.role_id from role_resource where role_resource.resource_id = %d)", resourceID)
 	if email != "" {
-		where += fmt.Sprintf(" role.user_id = (select id from user where user.email = '%s') ", email)
+		where += fmt.Sprintf(" and role.user_id = (select id from user where user.email = '%s') ", email)
 	}
 
 	var rs []meta.Role

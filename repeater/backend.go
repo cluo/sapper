@@ -9,6 +9,7 @@ import (
 
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/dearcode/crab/http/client"
+	"github.com/dearcode/crab/http/server"
 	"github.com/juju/errors"
 	"github.com/zssky/log"
 
@@ -49,7 +50,9 @@ func (bs *backendService) start() {
 			}
 
 			//type只有DELETE和PUT.
-			name := strings.Join(ss[2:len(ss)-2], "/")
+			name := string(e.Kv.Key)
+			name = name[4:strings.LastIndex(name, "/")]
+			name = name[:strings.LastIndex(name, "/")]
 			if e.Type == mvccpb.DELETE {
 				port, _ := strconv.Atoi(ss[len(ss)-1])
 				bs.unregister(name, ss[len(ss)-2], port)
@@ -79,7 +82,8 @@ func (bs *backendService) load() error {
 		}
 
 		//type只有DELETE和PUT.
-		name := strings.Join(ss[2:len(ss)-2], "/")
+		name := k[4:strings.LastIndex(k, "/")]
+		name = name[:strings.LastIndex(name, "/")]
 		app := meta.MicroAPP{}
 		json.Unmarshal([]byte(v), &app)
 		bs.register(name, app)
@@ -119,15 +123,21 @@ func (bs *backendService) unregister(name, host string, port int) {
 type managerClient struct {
 }
 
-func (mc *managerClient) interfaceRegister(app meta.MicroAPP) error {
-	url := fmt.Sprintf("%s/interface/register/", config.Repeater.Manager.URL)
+func (mc *managerClient) interfaceRegister(projectID int64, name, method, path, backend string) error {
+	url := fmt.Sprintf("%sinterface/register/", config.Repeater.Manager.URL)
 	req := struct {
 		Name      string
 		ProjectID int64
 		Path      string
-		Method    string
+		Method    server.Method
 		Backend   string
-	}{}
+	}{
+		Name:      name,
+		ProjectID: projectID,
+		Path:      path,
+		Backend:   backend,
+		Method:    server.NewMethod(method),
+	}
 
 	resp := struct {
 		Status  int
@@ -152,17 +162,53 @@ const (
 	httpConnectTimeout = 60
 )
 
+type docField struct {
+	Name     string
+	Type     string
+	Required bool
+	Comment  string
+}
+
+type docMethod struct {
+	Request map[string]docField
+}
+
+type docObject struct {
+	URL     string
+	Methods map[string]docMethod
+}
+
 func (bs *backendService) parseDocument(app meta.MicroAPP) error {
-	/*
-		url := fmt.Sprintf("http://%s:%d/document/", app.Host, app.Port)
-		buf, err := client.New(httpConnectTimeout).Get(url, nil, nil)
-		if err != nil {
-			return errors.Trace(err)
+	url := fmt.Sprintf("http://%s:%d/document/", app.Host, app.Port)
+	buf, err := client.New(httpConnectTimeout).Get(url, nil, nil)
+	if err != nil {
+		return errors.Trace(err)
+	}
+
+	var doc map[string]docObject
+
+	if err = json.Unmarshal(buf, &doc); err != nil {
+		log.Errorf("Unmarshal doc:%s error:%v", buf, err)
+		return errors.Annotatef(err, "%s", buf)
+	}
+
+	log.Debugf("doc:%+v", doc)
+
+	projectID, err := parseProjectID(app.ServiceKey)
+	if err != nil {
+		log.Errorf("parseProjectID:%s error:%v", app.ServiceKey, err)
+		return errors.Annotatef(err, app.ServiceKey)
+	}
+
+	mc := managerClient{}
+
+	for ok, ov := range doc {
+		for mk := range ov.Methods {
+			mc.interfaceRegister(projectID, ok+"_"+mk, mk, ov.URL, ov.URL)
 		}
-	*/
+	}
 
 	return nil
-
 }
 
 //register 到管理处添加接口, 肯定是多个repeater同时上报的，所以添加操作要指定版本信息.
@@ -174,7 +220,7 @@ func (bs *backendService) register(name string, app meta.MicroAPP) {
 	if !ok {
 		bs.apps[name] = []meta.MicroAPP{app}
 		log.Debugf("new name:%s, app:%+v", name, app)
-
+		bs.parseDocument(app)
 		return
 	}
 
@@ -194,11 +240,11 @@ func (bs *backendService) register(name string, app meta.MicroAPP) {
 //getMicroAPPs 根据接口名获取后端应用列表.
 func (bs *backendService) getMicroAPPs(name string) ([]meta.MicroAPP, error) {
 	bs.mu.RLock()
-	defer bs.mu.Unlock()
+	defer bs.mu.RUnlock()
 
 	apps, ok := bs.apps[name]
 	if !ok {
-		return nil, errNotFound
+		return nil, errors.Annotatef(errNotFound, name)
 	}
 
 	return apps, nil

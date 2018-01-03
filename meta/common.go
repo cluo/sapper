@@ -42,6 +42,7 @@ type Project struct {
 	User       string `json:"user" db:"user"`
 	Email      string `json:"email" db:"email"`
 	Path       string `json:"path" db:"path"  valid:"AlphaNumeric"`
+	Version    int    `json:"version" db:"version"  valid:"AlphaNumeric"`
 	Comments   string `json:"comments" db:"comments" valid:"Required"`
 	CTime      string `json:"ctime" db:"ctime" db_default:"now()"`
 	MTime      string `json:"mtime" db:"mtime" db_default:"now()"`
@@ -62,20 +63,19 @@ type Variable struct {
 
 // Interface 接口信息
 type Interface struct {
-	ID          int64
-	Name        string
-	User        string
-	Email       string
-	State       bool
-	ProjectID   int64  `db:"project_id"`
-	ProjectPath string `db:"project.path"`
-	Path        string
-	Method      server.Method
-	Backend     string
-	Comments    string
-	Level       int8
-	Ctime       string
-	Mtime       string
+	ID       int64
+	Name     string
+	User     string
+	Email    string
+	State    bool
+	Project  Project `db_table:"one"`
+	Path     string
+	Method   server.Method
+	Backend  string
+	Comments string
+	Level    int8
+	Ctime    string
+	Mtime    string
 }
 
 //TokenBody token结构.

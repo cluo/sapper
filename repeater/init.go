@@ -13,6 +13,7 @@ var (
 	Server *repeater
 	mdb    *orm.DB
 	dc     *dbCache
+	bs     *backendService
 )
 
 //repeater 网关验证模块
@@ -34,16 +35,18 @@ func ServerInit() error {
 
 	Server = &repeater{}
 
-	bs, err := newBackendService()
+	nbs, err := newBackendService()
 	if err != nil {
 		return errors.Trace(err)
 	}
 
-	go bs.start()
+	go nbs.start()
 
-	if err := bs.load(); err != nil {
+	if err := nbs.load(); err != nil {
 		return errors.Trace(err)
 	}
+
+	bs = nbs
 
 	return nil
 }

@@ -19,6 +19,7 @@ import (
 type dbCache struct {
 	etcd        *etcd.Client
 	cache       *cache.Cache
+	selProject  *sql.Stmt
 	selIface    *sql.Stmt
 	selVar      *sql.Stmt
 	selApp      *sql.Stmt
@@ -31,6 +32,10 @@ func (dc *dbCache) closeAll() {
 	if dc.dbc != nil {
 		dc.dbc.Close()
 		dc.dbc = nil
+	}
+	if dc.selProject != nil {
+		dc.selProject.Close()
+		dc.selProject = nil
 	}
 	if dc.selIface != nil {
 		dc.selIface.Close()
@@ -64,7 +69,11 @@ func (dc *dbCache) conectDB() error {
 		return errors.Trace(err)
 	}
 
-	if dc.selIface, err = dc.dbc.Prepare("select i.id, i.method, i.backend, i.email from interface as i, project as p where i.project_id = p.id and i.state = 1 and p.path=? and i.path=?"); err != nil {
+	if dc.selProject, err = dc.dbc.Prepare("select id, version from project where path=?"); err != nil {
+		return errors.Trace(err)
+	}
+
+	if dc.selIface, err = dc.dbc.Prepare("select id, method, backend, email from interface where project_id = ? and path=?"); err != nil {
 		return errors.Trace(err)
 	}
 
@@ -154,7 +163,7 @@ func (dc *dbCache) queryDB(s *sql.Stmt, arg []interface{}, res []interface{}) er
 	defer rows.Close()
 
 	if !rows.Next() {
-		return errors.Annotatef(errNotFound, "%v", arg)
+		return errors.Annotatef(errNotFound, "sql:%v, %v", s, arg)
 	}
 
 	if err = rows.Scan(res...); err != nil {
@@ -174,12 +183,31 @@ func (dc *dbCache) getInterface(key string) (*meta.Interface, error) {
 		return nil, errors.Trace(errInvalidPath)
 	}
 
-	i := meta.Interface{}
-	if err := dc.queryDB(dc.selIface, []interface{}{ps[1], ps[2]}, []interface{}{&i.ID, &i.Method, &i.Backend, &i.Email}); err != nil {
+	p := meta.Project{}
+	if err := dc.queryDB(dc.selProject, []interface{}{ps[1]}, []interface{}{&p.ID, &p.Version}); err != nil {
 		return nil, errors.Trace(err)
 	}
-	i.Path = ps[2]
+
+	path := ps[2]
+	if p.Version == 1 {
+		//Faas接口
+		path = key[len(ps[1])+1:]
+		if idx := strings.LastIndex(path, "?"); idx != -1 {
+			path = path[:idx]
+		}
+		log.Debugf("faas path:%s, src:%s", path, key)
+	}
+
+	i := meta.Interface{}
+	if err := dc.queryDB(dc.selIface, []interface{}{p.ID, path}, []interface{}{&i.ID, &i.Method, &i.Backend, &i.Email}); err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	i.Path = path
+	i.Project = p
+
 	dc.cache.Add(key, &i)
+
 	return &i, nil
 }
 

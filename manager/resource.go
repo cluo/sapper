@@ -68,7 +68,7 @@ func (ri *resourceInfo) GET(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Debugf("query:%v, resource:%v", ri, rs)
-	server.SendData(w, rs)
+	server.SendResponseData(w, rs)
 }
 
 //POST 关联角色

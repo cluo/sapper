@@ -279,22 +279,32 @@ func (c Client) GetResourceRoles(resID int64) ([]meta.RoleResource, error) {
 
 // GetResource 获取资源.
 func (c Client) GetResource(resID int64) (meta.Resource, error) {
-	r := meta.Resource{}
+	r := struct {
+		Status  int
+		Message string
+		Data    []meta.Resource
+	}{}
+
 	url := fmt.Sprintf("http://%s/rbac/resource/?id=%v", c.host, resID)
 	buf, err := c.get(url)
 	if err != nil {
 		log.Infof("Get:%v error:%v", url, err)
-		return r, errors.Trace(err)
+		return meta.Resource{}, errors.Trace(err)
 	}
 
 	log.Infof("get resource response:%v", string(buf))
 
 	if err = json.Unmarshal(buf, &r); err != nil {
 		log.Errorf("Get:%v Unmarshal error:%v, buf:%s", url, err, buf)
-		return r, errors.Trace(err)
+		return meta.Resource{}, errors.Trace(err)
 	}
 
-	return r, nil
+	if r.Status != 0 {
+		log.Errorf("Get:%v error:%s", r.Message)
+		return meta.Resource{}, fmt.Errorf(r.Message)
+	}
+
+	return r.Data[0], nil
 }
 
 //GetResourceRolesUnrelated 获取未资源对应的所有角色列表.

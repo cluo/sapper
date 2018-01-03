@@ -184,26 +184,42 @@ func (i *interfaceAction) GET(w http.ResponseWriter, r *http.Request) {
 
 	var is []meta.Interface
 
-	where := fmt.Sprintf("project_id=%d and project.id = interface.project_id", i.ProjectID)
+	db, err := mdb.GetConnection()
+	if err != nil {
+		log.Errorf("resourceID:%d, vars:%+v, err:%v", resID, i, errors.ErrorStack(err))
+		fmt.Fprintf(w, err.Error())
+		return
+	}
+
+	stmt := orm.NewStmt(db, "interface")
+	stmt = stmt.Where("project_id=%d", i.ProjectID)
 
 	if i.State == 1 {
-		where += " and state=1 "
+		stmt = stmt.Where("state=1")
 	}
 
 	if i.Search != "" {
-		where += " and (interface.name like '%" + i.Search + "%'"
-		where += " or interface.user like '%" + i.Search + "%'"
-		where += " or interface.comments like '%" + i.Search + "%'"
-		where += " or interface.path like '%" + i.Search + "%'"
-		where += " or interface.backend like '%" + i.Search + "%')"
+		stmt = stmt.Where("(interface.name like '%" + i.Search + "%'" +
+			" or interface.user like '%" + i.Search + "%'" +
+			" or interface.comments like '%" + i.Search + "%'" +
+			" or interface.path like '%" + i.Search + "%'" +
+			" or interface.backend like '%" + i.Search + "%')")
 	}
+
+	total, err := stmt.Count()
+	if err != nil {
+		log.Errorf("count interface error:%v", errors.ErrorStack(err))
+		fmt.Fprintf(w, err.Error())
+		return
+	}
+	log.Debugf("count:%d", total)
 
 	if i.Sort != "" {
-		i.Sort = "interface." + i.Sort
+		stmt = stmt.Order("interface." + i.Sort)
 	}
 
-	total, err := query("interface, project", where, i.Sort, i.Order, i.Page, i.Size, &is)
-	if err != nil {
+	stmt = stmt.Offset(i.Page).Limit(i.Size)
+	if err = stmt.Query(&is); err != nil {
 		log.Errorf("query interface error:%v", errors.ErrorStack(err))
 		fmt.Fprintf(w, err.Error())
 		return
@@ -216,21 +232,9 @@ func (i *interfaceAction) GET(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := struct {
-		Total int              `json:"total"`
-		Rows  []meta.Interface `json:"rows"`
-	}{total, is}
-
-	buf, err := json.Marshal(result)
-	if err != nil {
-		fmt.Fprintf(w, err.Error())
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(buf)
 
-	log.Debugf(":%+v\n", string(buf))
+	server.SendRows(w, total, is)
 }
 
 func (i *interfaceAction) DELETE(w http.ResponseWriter, r *http.Request) {
@@ -363,10 +367,12 @@ type interfaceRegister struct {
 
 func (ir *interfaceRegister) POST(w http.ResponseWriter, r *http.Request) {
 	vars := struct {
-		Name      string
 		ProjectID int64
+		User      string
+		Email     string
+		Name      string
 		Path      string
-		Method    string
+		Method    int
 		Backend   string
 	}{}
 
@@ -374,24 +380,6 @@ func (ir *interfaceRegister) POST(w http.ResponseWriter, r *http.Request) {
 		log.Errorf("invalid req:%+v", r)
 		server.SendResponse(w, http.StatusBadRequest, err.Error())
 		return
-	}
-
-	i := meta.Interface{
-		Name:      vars.Name,
-		Path:      vars.Path,
-		ProjectID: vars.ProjectID,
-		Backend:   vars.Backend,
-	}
-
-	switch vars.Method {
-	case http.MethodGet:
-		i.Method = server.GET
-	case http.MethodPost:
-		i.Method = server.POST
-	case http.MethodPut:
-		i.Method = server.PUT
-	case http.MethodDelete:
-		i.Method = server.DELETE
 	}
 
 	db, err := mdb.GetConnection()
@@ -402,13 +390,13 @@ func (ir *interfaceRegister) POST(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	id, err := orm.NewStmt(db, "interface").Insert(&i)
+	id, err := orm.NewStmt(db, "interface").Insert(&vars)
 	if err != nil {
-		log.Errorf("insert interface:%+v, error:%v", i, err)
+		log.Errorf("insert interface:%+v, error:%v", vars, err)
 		server.SendResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	server.SendResponseData(w, id)
-	log.Debugf("new interface:%+v, id:%v", i, id)
+	log.Debugf("new interface:%+v, id:%v", vars, id)
 }

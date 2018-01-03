@@ -7,6 +7,7 @@ import (
 )
 
 func TestProjectKey(t *testing.T) {
+	//TODO 这个测试不需要跑，以后把代码合并后再跑
 	config.Distributor.Server.SecretKey = "1qaz@WSX"
 	ds := []struct {
 		key string

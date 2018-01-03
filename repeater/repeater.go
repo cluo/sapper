@@ -69,7 +69,7 @@ func (r *repeater) GetInterface(req *http.Request, id string) (app *meta.Applica
 	log.Infof("%s app is:%v, user email is:%v", id, app.Name, app.Email)
 
 	if iface, err = dc.getInterface(req.URL.Path); err != nil {
-		log.Errorf("%s get intergace error path:%v, user email is:%v", id, req.URL.Path, app.Email)
+		log.Errorf("%s get interface error path:%v, user email is:%v", id, req.URL.Path, app.Email)
 		return nil, nil, errors.Trace(err)
 	}
 	log.Infof("%s iface is:%v,user email is:%v", id, iface.Path, iface.Email)
@@ -148,16 +148,27 @@ func (r *repeater) buildRequest(id string, iface *meta.Interface, req *http.Requ
 	var err error
 	backend := iface.Backend
 
-	//取url中接口名后剩余部分, 可能是RESTful请求
-	if idx := strings.Index(req.URL.Path, iface.Path); idx > 0 {
-		if path := req.URL.Path[idx+len(iface.Path):]; len(path) > 1 {
-			if strings.HasSuffix(backend, "/") {
-				backend += path[1:]
-			} else {
-				backend += path
+	if iface.Project.Version == 1 {
+		apps, err := bs.getMicroAPPs(iface.Backend)
+		if err != nil {
+			return errors.Trace(err)
+		}
+		idx := time.Now().UnixNano() % int64(len(apps))
+		backend = fmt.Sprintf("http://%s:%d%s", apps[idx].Host, apps[idx].Port, iface.Backend)
+		log.Infof("faas backend url:%v", backend)
+	} else {
+		//取url中接口名后剩余部分, 可能是RESTful请求
+		if idx := strings.Index(req.URL.Path, iface.Path); idx > 0 {
+			if path := req.URL.Path[idx+len(iface.Path):]; len(path) > 1 {
+				if strings.HasSuffix(backend, "/") {
+					backend += path[1:]
+				} else {
+					backend += path
+				}
 			}
 		}
 	}
+
 	//生成url参数
 	if args := req.URL.Query().Encode(); args != "" {
 		backend += "?" + args
