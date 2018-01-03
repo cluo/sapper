@@ -21,7 +21,7 @@ const (
 )
 
 var (
-	etcdAddrs = flag.String("etcd", "192.168.180.104:12379 , 192.168.180.104:22379 , 192.168.180.104:32379", "etcd Endpoints.")
+	etcdAddrs = flag.String("etcd", "", "etcd Endpoints, like 192.168.180.104:12379,192.168.180.104:22379,192.168.180.104:32379.")
 )
 
 type keepalive struct {

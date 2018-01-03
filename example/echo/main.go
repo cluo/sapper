@@ -29,5 +29,5 @@ func main() {
 	srv := service.New()
 	srv.Init()
 	srv.Register(echo{})
-	srv.Start(true)
+	srv.Start()
 }

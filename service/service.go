@@ -115,8 +115,8 @@ func (s *Service) Register(obj interface{}) error {
 	return nil
 }
 
-//Start 如果本地测试只需要localMode为true，则不会去etcd中注册.
-func (s *Service) Start(localMode bool) {
+//Start 开启服务.
+func (s *Service) Start() {
 	s.docView = newDocView(s.doc)
 	server.RegisterPath(&s.docView, "/doc/")
 	//第一步，启动服务
@@ -127,11 +127,9 @@ func (s *Service) Start(localMode bool) {
 	}
 
 	//第二步，注册到接口平台API接口队列中.
-	if !localMode {
-		if err := s.keepalive.start(ln, s.doc); err != nil {
-			log.Errorf("apiRegister error:%v", errors.ErrorStack(err))
-			panic(err)
-		}
+	if err := s.keepalive.start(ln, s.doc); err != nil {
+		log.Errorf("apiRegister error:%v", errors.ErrorStack(err))
+		panic(err)
 	}
 
 	shutdown := make(chan os.Signal)
