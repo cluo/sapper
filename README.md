@@ -6,7 +6,7 @@
 ## 架构图  
 ![Sapper](/docs/sapper.png?raw=true "sapper")  
 
-## 操作流程  
+## 使用手册    
 1.在manager页面中添加项目信息，包含项目源码所在git地址  
 2.在git服务器中添加webhook  
 3.当用户提交代码到git中时通过webhook触发distributor编译发布程序到指定服务器并启动运行  
