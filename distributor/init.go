@@ -13,8 +13,8 @@ var (
 )
 
 // ServerInit 初始化HTTP接口.
-func ServerInit() error {
-	if err := config.Load(); err != nil {
+func ServerInit(confPath string) error {
+	if err := config.Load(confPath); err != nil {
 		return errors.Trace(err)
 	}
 

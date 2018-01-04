@@ -31,10 +31,9 @@ type ResponseHeader struct {
 
 //Service 一个服务对象.
 type Service struct {
-	doc       document
-	docView   docView
-	router    router
-	keepalive *keepalive
+	doc     document
+	docView docView
+	router  router
 }
 
 var (
@@ -48,9 +47,8 @@ var (
 //New 返回service对象.
 func New() *Service {
 	return &Service{
-		doc:       newDocument(),
-		router:    newRouter(),
-		keepalive: newKeepalive(),
+		doc:    newDocument(),
+		router: newRouter(),
 	}
 }
 
@@ -126,8 +124,9 @@ func (s *Service) Start() {
 		panic(err)
 	}
 
+	keepalive := newKeepalive()
 	//第二步，注册到接口平台API接口队列中.
-	if err := s.keepalive.start(ln, s.doc); err != nil {
+	if err := keepalive.start(ln, s.doc); err != nil {
 		log.Errorf("apiRegister error:%v", errors.ErrorStack(err))
 		panic(err)
 	}
@@ -136,7 +135,7 @@ func (s *Service) Start() {
 	signal.Notify(shutdown, syscall.SIGUSR1)
 
 	sig := <-shutdown
-	s.keepalive.stop()
+	keepalive.stop()
 	log.Warningf("%v recv signal %v, close:%v", os.Getpid(), sig, ln.Close())
 
 	log.Warningf("%v wait timeout:%v.", os.Getpid(), maxWaitTime)

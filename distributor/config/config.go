@@ -1,15 +1,12 @@
 package config
 
 import (
-	"flag"
-
 	"github.com/dearcode/crab/config"
 )
 
 var (
 	// Distributor 配置信息.
 	Distributor distributorConfig
-	configPath  = flag.String("c", "./config/distributor.ini", "config file")
 )
 
 type serverConfig struct {
@@ -29,17 +26,22 @@ type dbConfig struct {
 	Charset string
 }
 
+type managerConfig struct {
+	URL string
+}
+
 type etcdConfig struct {
 	Hosts string
 }
 
 type distributorConfig struct {
-	Server serverConfig
-	DB     dbConfig
-	ETCD   etcdConfig
+	Server  serverConfig
+	DB      dbConfig
+	ETCD    etcdConfig
+	Manager managerConfig
 }
 
 //Load 加载配置文件.
-func Load() error {
-	return config.LoadConfig(*configPath, &Distributor)
+func Load(confPath string) error {
+	return config.LoadConfig(confPath, &Distributor)
 }

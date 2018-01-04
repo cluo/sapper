@@ -220,19 +220,10 @@ func (i *interfaceAction) GET(w http.ResponseWriter, r *http.Request) {
 
 	stmt = stmt.Offset(i.Page).Limit(i.Size)
 	if err = stmt.Query(&is); err != nil {
-		log.Errorf("query interface error:%v", errors.ErrorStack(err))
-		fmt.Fprintf(w, err.Error())
+		log.Errorf("query interface:%+v error:%v", i, errors.ErrorStack(err))
+		server.SendRows(w, 0, nil)
 		return
 	}
-
-	if len(is) == 0 {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"total":0,"rows":[]}`))
-		log.Debugf("interface with projectID:%d, not found", i.ProjectID)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
 
 	server.SendRows(w, total, is)
 }

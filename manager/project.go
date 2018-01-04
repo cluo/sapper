@@ -1,11 +1,12 @@
 package manager
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/dearcode/crab/http/server"
+	"github.com/dearcode/crab/orm"
 	"github.com/juju/errors"
 	"github.com/zssky/log"
 
@@ -23,21 +24,25 @@ func (pi *projectInfo) GET(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var ps []meta.Project
-	_, err := query("project", fmt.Sprintf("id=%d", pi.ID), "", "", 0, 0, &ps)
+	var p meta.Project
+
+	db, err := mdb.GetConnection()
 	if err != nil {
+		log.Errorf("GetConnection req:%+v, error:%s", r, errors.ErrorStack(err))
+		util.SendResponse(w, http.StatusInternalServerError, "连接数据库出错")
+		return
+	}
+	defer db.Close()
+
+	if err = orm.NewStmt(db, "project").Where("id=%d", pi.ID).Query(&p); err != nil {
 		fmt.Fprintf(w, err.Error())
 		return
 	}
 
-	buf, err := json.Marshal(ps[0])
-	if err != nil {
-		fmt.Fprintf(w, err.Error())
-		return
-	}
+	server.SendData(w, p)
+}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(buf)
+type project struct {
 }
 
 func (p *project) GET(w http.ResponseWriter, r *http.Request) {
@@ -65,32 +70,35 @@ func (p *project) GET(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var ps []meta.Project
-	total, err := query("project", where, vars.Sort, vars.Order, vars.Page, vars.Size, &ps)
+
+	db, err := mdb.GetConnection()
 	if err != nil {
+		log.Errorf("GetConnection req:%+v, error:%s", r, errors.ErrorStack(err))
+		util.SendResponse(w, http.StatusInternalServerError, "连接数据库出错")
+		return
+	}
+	defer db.Close()
+
+	stmt := orm.NewStmt(db, "project").Where(where)
+	total, err := stmt.Count()
+	if err != nil {
+		log.Errorf("Count req:%+v, error:%v", r, errors.ErrorStack(err))
+		util.SendResponse(w, http.StatusInternalServerError, "查询数据库出错")
+		return
+	}
+
+	if total == 0 {
+		log.Infof("project not found,req:%+v", r)
+		server.SendRows(w, 0, nil)
+		return
+	}
+
+	if err = stmt.Order(vars.Order).Offset(vars.Page).Limit(vars.Size).Sort(vars.Sort).Query(&ps); err != nil {
 		fmt.Fprintf(w, err.Error())
 		return
 	}
 
-	if len(ps) == 0 {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"total":0,"rows":[]}`))
-		log.Debugf("project not found")
-		return
-	}
-
-	result := struct {
-		Total int            `json:"total"`
-		Rows  []meta.Project `json:"rows"`
-	}{total, ps}
-
-	buf, err := json.Marshal(result)
-	if err != nil {
-		fmt.Fprintf(w, err.Error())
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(buf)
+	server.SendRows(w, total, ps)
 }
 
 func (p *project) DELETE(w http.ResponseWriter, r *http.Request) {
@@ -122,6 +130,7 @@ func (p *project) POST(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := util.DecodeRequestValue(r, &vars); err != nil {
+		log.Errorf("invalid request:%v, error:%v", r, errors.ErrorStack(err))
 		util.SendResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -154,7 +163,15 @@ func (p *project) POST(w http.ResponseWriter, r *http.Request) {
 	vars.ResourceID = resID
 	vars.RoleID = roleID
 
-	id, err := add("project", vars)
+	db, err := mdb.GetConnection()
+	if err != nil {
+		log.Errorf("GetConnection req:%+v, error:%s", r, errors.ErrorStack(err))
+		util.SendResponse(w, http.StatusInternalServerError, "连接数据库出错")
+		return
+	}
+	defer db.Close()
+
+	id, err := orm.NewStmt(db, "project").Insert(vars)
 	if err != nil {
 		if strings.Contains(err.Error(), "1062") {
 			log.Errorf("add req:%+v, error:%s", r, errors.ErrorStack(err))
@@ -169,9 +186,6 @@ func (p *project) POST(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("add project:%v, id:%v, role:%d, resource:%d", vars, id, roleID, resID)
 }
 
-type project struct {
-}
-
 func (p *project) PUT(w http.ResponseWriter, r *http.Request) {
 	vars := struct {
 		ID       int64  `json:"id" valid:"Required"`
@@ -179,6 +193,8 @@ func (p *project) PUT(w http.ResponseWriter, r *http.Request) {
 		User     string `json:"user"  valid:"Required"`
 		Email    string `json:"email"  valid:"Email"`
 		Path     string `json:"path"  valid:"AlphaNumeric"`
+		Source   string `json:"source"`
+		Version  int    `json:"version"`
 		Comments string `json:"comments"  valid:"Required"`
 	}{}
 	u, err := session.User(r)
@@ -198,7 +214,7 @@ func (p *project) PUT(w http.ResponseWriter, r *http.Request) {
 		vars.User = u.User
 	}
 
-	if err := updateProject(vars.ID, vars.Name, vars.User, vars.Email, vars.Path, vars.Comments); err != nil {
+	if err := updateProject(vars.ID, vars.Name, vars.User, vars.Email, vars.Path, vars.Comments, vars.Source, vars.Version); err != nil {
 		util.SendResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}

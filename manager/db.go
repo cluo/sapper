@@ -115,15 +115,15 @@ func query(table, where, sort, order string, offset, count int, result interface
 	return count, nil
 }
 
-func updateProject(id int64, name, user, email, path, comments string) error {
-	sql := "update project set name=?, user=?, email=?, path=?, comments=?, mtime=now() where id=?"
+func updateProject(id int64, name, user, email, path, comments, source string, version int) error {
+	sql := "update project set name=?, user=?, email=?, path=?, comments=?, mtime=now(),source=?,version=? where id=?"
 	db, err := mdb.GetConnection()
 	if err != nil {
 		return errors.Trace(err)
 	}
 	defer db.Close()
 
-	_, err = db.Exec(sql, name, user, email, path, comments, id)
+	_, err = db.Exec(sql, name, user, email, path, comments, source, version, id)
 	return errors.Trace(err)
 }
 

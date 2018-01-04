@@ -193,7 +193,7 @@ func (t *task) install() error {
 		return errors.Annotatef(err, cmd)
 	}
 
-	cmd = fmt.Sprintf("hostname; tar xzf %s; killall %v; nohup ./%v -h : > %v.log 2>&1 &", tarFile, t.project.Name, t.project.Name, t.project.Name)
+	cmd = fmt.Sprintf("hostname; tar xzf %s; killall %v; nohup ./%v -etcd 192.168.180.104:12379,192.168.180.104:22379,192.168.180.104:32379 -h : > %v.log 2>&1 &", tarFile, t.project.Name, t.project.Name, t.project.Name)
 
 	for _, d := range t.project.Deploy {
 		sc := ssh.NewClient(d.Server, 22, "root", "1qaz@WSX")

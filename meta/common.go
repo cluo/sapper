@@ -35,15 +35,16 @@ type Relation struct {
 
 //Project 项目信息
 type Project struct {
-	ID         int64  `json:"id" db:"id" db_default:"auto"`
-	RoleID     int64  `json:"role_id" db:"role_id" `
-	ResourceID int64  `json:"resource_id" db:"resource_id" `
-	Name       string `json:"name" db:"name" valid:"Required"`
-	User       string `json:"user" db:"user"`
-	Email      string `json:"email" db:"email"`
-	Path       string `json:"path" db:"path"  valid:"AlphaNumeric"`
-	Version    int    `json:"version" db:"version"  valid:"AlphaNumeric"`
-	Comments   string `json:"comments" db:"comments" valid:"Required"`
+	ID         int64  `json:"id" db_default:"auto"`
+	RoleID     int64  `json:"role_id" `
+	ResourceID int64  `json:"resource_id" `
+	Name       string `json:"name" valid:"Required"`
+	User       string `json:"user" `
+	Email      string `json:"email" `
+	Path       string `json:"path"  valid:"AlphaNumeric"`
+	Source     string `json:"source" `
+	Version    int    `json:"version" `
+	Comments   string `json:"comments" valid:"Required"`
 	CTime      string `json:"ctime" db:"ctime" db_default:"now()"`
 	MTime      string `json:"mtime" db:"mtime" db_default:"now()"`
 }

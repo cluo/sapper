@@ -15,9 +15,10 @@ import (
 )
 
 var (
-	addr    = flag.String("h", ":9300", "api listen address")
-	debug   = flag.Bool("debug", false, "debug write log to console.")
-	version = flag.Bool("v", false, "show version info")
+	addr       = flag.String("h", ":9300", "api listen address")
+	debug      = flag.Bool("debug", false, "debug write log to console.")
+	version    = flag.Bool("v", false, "show version info")
+	configPath = flag.String("c", "./config/distributor.ini", "config file")
 
 	maxWaitTime = time.Minute
 )
@@ -36,7 +37,7 @@ func main() {
 		log.SetRotateByDay()
 	}
 
-	if err := distributor.ServerInit(); err != nil {
+	if err := distributor.ServerInit(*configPath); err != nil {
 		panic(err)
 	}
 
