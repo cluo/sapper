@@ -37,10 +37,11 @@ type Service struct {
 }
 
 var (
-	host        = flag.String("h", ":8080", "listen address.")
-	version     = flag.Bool("v", false, "version info.")
-	logLevel    = flag.String("logLevel", "debug", "log level: fatal, error, warning, debug, info.")
-	logFile     = flag.String("logFile", "", "log file name.")
+	host     = flag.String("h", ":8080", "listen address.")
+	version  = flag.Bool("v", false, "version info.")
+	logLevel = flag.String("logLevel", "debug", "log level: fatal, error, warning, debug, info.")
+	logFile  = flag.String("logFile", "", "log file name.")
+
 	maxWaitTime = time.Hour * 24 * 7
 )
 
@@ -78,24 +79,14 @@ func (s *Service) Init() {
 //Register 注册接口.
 func (s *Service) Register(obj interface{}) error {
 	t := reflect.TypeOf(obj)
-	path := t.PkgPath()
 	name := t.Name()
 
 	//不能脱壳，脱壳后取不到method.
 	if t.Kind() == reflect.Ptr {
-		path = t.Elem().PkgPath()
 		name = t.Elem().Name()
 	}
 
-	if idx := strings.Index(path, "/"); idx > 0 {
-		path = path[strings.Index(path, "/"):]
-	} else {
-		path = "/" + path
-	}
-
-	url := path + "/" + name
-
-	//log.Debugf("%s url:%v, method:%d", name, url, t.NumMethod())
+	url := "/" + name
 
 	for _, k := range []string{"Get", "Post", "Put", "Delete"} {
 		if m, ok := t.MethodByName(k); ok {
