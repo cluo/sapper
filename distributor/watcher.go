@@ -121,7 +121,7 @@ func (mc *managerClient) interfaceRegister(projectID int64, name, method, path, 
 		return errors.New(resp.Message)
 	}
 
-	log.Debugf("register success, id:%v", resp.Data)
+	log.Debugf("register %+v success, id:%v", req, resp.Data)
 
 	return nil
 }

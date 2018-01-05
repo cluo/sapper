@@ -180,7 +180,13 @@
         loadInterfaceInfo();
         loadVariableInfo();
 
+        if (project.version == 1) {
+        $("#api_url").html("<code>http://"+domain+":9000/"+project.path+iface.Path+"</code>");
+        }
+        else {
         $("#api_url").html("<code>http://"+domain+":9000/"+project.path+"/"+iface.Path+"/</code>");
+
+        }
 
 
         $("#projectName").html(project.name);

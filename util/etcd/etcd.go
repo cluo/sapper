@@ -72,9 +72,9 @@ func (e *Client) List(prefix string) (map[string]string, error) {
 	keys := make(map[string]string)
 	for _, k := range resp.Kvs {
 		keys[string(k.Key)] = string(k.Value)
+		log.Debugf("find key:%s", k.Key)
 	}
 
-	log.Debugf("find key:%s", keys)
 	return keys, nil
 }
 
