@@ -154,7 +154,7 @@ func (r *repeater) buildRequest(id string, iface *meta.Interface, req *http.Requ
 			return errors.Trace(err)
 		}
 		idx := time.Now().UnixNano() % int64(len(apps))
-		backend = fmt.Sprintf("http://%s:%d%s", apps[idx].Host, apps[idx].Port, iface.Backend)
+		backend = fmt.Sprintf("http://%s:%d%s", apps[idx].Host, apps[idx].Port, iface.Path)
 		log.Infof("faas backend url:%v", backend)
 	} else {
 		//取url中接口名后剩余部分, 可能是RESTful请求
