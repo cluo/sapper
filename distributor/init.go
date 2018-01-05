@@ -23,5 +23,16 @@ func ServerInit(confPath string) error {
 	server.RegisterPath(&distributor{}, "/distributor/")
 	server.RegisterPath(&deploy{}, "/deploy/")
 
+	w, err := newWatcher()
+	if err != nil {
+		return errors.Trace(err)
+	}
+
+	go w.start()
+
+	if err = w.load(); err != nil {
+		return errors.Trace(err)
+	}
+
 	return nil
 }

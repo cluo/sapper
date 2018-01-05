@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	apigatePrefix = "/api"
+	apigatePrefix = "/api/"
 )
 
 var (
@@ -60,19 +60,17 @@ func (k *keepalive) start(ln net.Listener, doc document) error {
 	la := ln.Addr().String()
 	port := la[strings.LastIndex(la, ":")+1:]
 
-	//注册所有接口
-	for _, m := range doc.methods() {
-		key := apigatePrefix + m + "/" + local + "/" + port
-		p, _ := strconv.Atoi(port)
-		val := meta.NewMicroAPP(debug.GitHash, local, debug.ServiceKey, p, os.Getpid()).String()
+	//注册服务，key为当前项目名及IP端口
+	key := apigatePrefix + debug.Project + "/" + local + "/" + port
+	p, _ := strconv.Atoi(port)
+	val := meta.NewMicroAPP(debug.GitHash, local, debug.ServiceKey, p, os.Getpid()).String()
 
-		if _, err := k.etcd.Keepalive(key, val); err != nil {
-			log.Errorf("etcd Keepalive key:%v, val:%v, error:%v", key, val, errors.ErrorStack(err))
-			return errors.Trace(err)
-		}
-
-		log.Debugf("etcd put key:%v val:%v", key, val)
+	if _, err := k.etcd.Keepalive(key, val); err != nil {
+		log.Errorf("etcd Keepalive key:%v, val:%v, error:%v", key, val, errors.ErrorStack(err))
+		return errors.Trace(err)
 	}
+
+	log.Debugf("etcd put key:%v val:%v", key, val)
 
 	return nil
 }

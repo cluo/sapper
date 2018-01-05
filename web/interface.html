@@ -130,7 +130,7 @@
 
     //接口前端地址
     function frontFormatter(value, row, index) {
-        return "/"+row.ProjectPath +"/"+row.Path;
+        return "/"+row.Project.path + row.Path;
     }
 
     //级别格式话0:重要,1:普通

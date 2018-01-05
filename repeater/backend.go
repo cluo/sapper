@@ -40,7 +40,7 @@ func (bs *backendService) start() {
 	for {
 		go bs.etcd.WatchPrefix(apigatePrefix, ec)
 		for e := range ec {
-			// /api/dbs/dbfree/handler/Fore/192.168.180.102/21638
+			// k = /api/git.jd.com/dbs/faas_test_001/192.168.137.222/41596
 			ss := strings.Split(string(e.Kv.Key), "/")
 			if len(ss) < 4 {
 				log.Errorf("invalid key:%s, event:%v", e.Kv.Key, e.Type)
@@ -48,9 +48,7 @@ func (bs *backendService) start() {
 			}
 
 			//type只有DELETE和PUT.
-			name := string(e.Kv.Key)
-			name = name[4:strings.LastIndex(name, "/")]
-			name = name[:strings.LastIndex(name, "/")]
+			name := strings.Join(ss[2:len(ss)-2], "/")
 			if e.Type == clientv3.EventTypeDelete {
 				port, _ := strconv.Atoi(ss[len(ss)-1])
 				bs.unregister(name, ss[len(ss)-2], port)
@@ -80,8 +78,7 @@ func (bs *backendService) load() error {
 		}
 
 		//type只有DELETE和PUT.
-		name := k[4:strings.LastIndex(k, "/")]
-		name = name[:strings.LastIndex(name, "/")]
+		name := strings.Join(ss[2:len(ss)-2], "/")
 		app := meta.MicroAPP{}
 		json.Unmarshal([]byte(v), &app)
 		bs.register(name, app)
@@ -147,6 +144,11 @@ func (bs *backendService) register(name string, app meta.MicroAPP) {
 func (bs *backendService) getMicroAPPs(name string) ([]meta.MicroAPP, error) {
 	bs.mu.RLock()
 	defer bs.mu.RUnlock()
+
+	log.Debugf("find name:%v", name)
+	for k, v := range bs.apps {
+		log.Debugf("k:%v, v:%v", k, v)
+	}
 
 	apps, ok := bs.apps[name]
 	if !ok {

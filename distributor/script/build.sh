@@ -25,7 +25,6 @@ function clone_source() {
     git clone --depth=1 $url;
     cd -;
 
-    project=`echo $url|sed 's/.*://'|sed 's/\.git//'`;
     app=`echo $url|xargs basename -s .git`;
     base_path=$base_path/$app;
 
@@ -41,12 +40,16 @@ function clone_source() {
 }
 
 function create_dockerfile() {
-    package=`echo $url|sed 's/.*@//'|sed 's/\.git//'|sed 's/:/\//'`;
-    package_in_vendor="$package/vendor/$framework_package"
+    project=`echo $url|sed 's/.*@//'|sed 's/\.git//'|sed 's/:/\//'`;
+    package_in_vendor="$project/vendor/$framework_package"
     cp Dockerfile.tpl Dockerfile
-    sed -i "s#{{.BASE_PATH}}#\"$base_path\"#" Dockerfile
-    local ldflags="\' -X \"$package_in_vendor/debug.ServiceKey=$key\" -X \"$package_in_vendor/debug.GitHash=$git_hash\" -X \"$package_in_vendor/debug.GitTime=$git_time\" -X \"$package_in_vendor/debug.GitMessage=$git_message\"\'"
-    sed -i "s#{{.LDFLAGS}}#$ldflags#" Dockerfile
+    sed -i "s#{{BASE_PATH}}#$base_path#" Dockerfile
+    sed -i "s#{{PACKAGE_IN_VENDOR}}#$package_in_vendor#g" Dockerfile
+    sed -i "s#{{KEY}}#$key#g" Dockerfile
+    sed -i "s#{{GIT_HASH}}#$git_hash#g" Dockerfile
+    sed -i "s#{{GIT_TIME}}#$git_time#g" Dockerfile
+    sed -i "s#{{GIT_MESSAGE}}#$git_message#g" Dockerfile
+    sed -i "s#{{PROJECT}}#$project#g" Dockerfile
 }
 
 function build() {

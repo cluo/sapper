@@ -2,6 +2,7 @@ package service
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -88,8 +89,9 @@ func (s *Service) Register(obj interface{}) error {
 		pkg = t.Elem().PkgPath()
 	}
 
-	url := pkg + "/" + name
-	url = url[strings.Index(url, "/"):]
+	pkg = strings.TrimPrefix(pkg, debug.Project)
+
+	url := fmt.Sprintf("%s/%s/", pkg, name)
 
 	for _, k := range []string{"Get", "Post", "Put", "Delete"} {
 		if m, ok := t.MethodByName(k); ok {

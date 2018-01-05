@@ -24,24 +24,24 @@ const (
 
 type watcher struct {
 	etcd *etcd.Client
-	apps map[string][]meta.MicroAPP
+	apps map[string]meta.MicroAPP
 	mu   sync.RWMutex
 }
 
-func newwatcher() (*watcher, error) {
+func newWatcher() (*watcher, error) {
 	c, err := etcd.New(strings.Split(config.Distributor.ETCD.Hosts, ","))
 	if err != nil {
 		return nil, errors.Annotatef(err, config.Distributor.ETCD.Hosts)
 	}
 
-	return &watcher{etcd: c, apps: make(map[string][]meta.MicroAPP)}, nil
+	return &watcher{etcd: c, apps: make(map[string]meta.MicroAPP)}, nil
 }
 
-func (bs *watcher) start() {
+func (w *watcher) start() {
 	ec := make(chan clientv3.Event)
 
 	for {
-		go bs.etcd.WatchPrefix(apigatePrefix, ec)
+		go w.etcd.WatchPrefix(apigatePrefix, ec)
 		for e := range ec {
 			// /api/dbs/dbfree/handler/Fore/192.168.180.102/21638
 			ss := strings.Split(string(e.Kv.Key), "/")
@@ -55,69 +55,37 @@ func (bs *watcher) start() {
 				continue
 			}
 
-			name := string(e.Kv.Key)
-			name = name[4:strings.LastIndex(name, "/")]
-			name = name[:strings.LastIndex(name, "/")]
+			name := strings.Join(ss[2:len(ss)-2], "/")
 
 			app := meta.MicroAPP{}
 			json.Unmarshal(e.Kv.Value, &app)
-			bs.register(name, app)
+			w.register(name, app)
 		}
 	}
 }
 
-func (bs *watcher) load() error {
-	bss, err := bs.etcd.List(apigatePrefix)
+func (w *watcher) load() error {
+	bss, err := w.etcd.List(apigatePrefix)
 	if err != nil {
 		log.Errorf("list %s error:%v", apigatePrefix, err)
 		return errors.Annotatef(err, apigatePrefix)
 	}
 
 	for k, v := range bss {
-		// k = /api/dbs/dbfree/handler/Fore/192.168.180.102/21638
+		// k = /api/git.jd.com/dbs/faas_test_001/192.168.137.222/41596
 		ss := strings.Split(k, "/")
 		if len(ss) < 4 {
 			log.Errorf("invalid key:%s", k)
 			continue
 		}
 
-		//type只有DELETE和PUT.
-		name := k[4:strings.LastIndex(k, "/")]
-		name = name[:strings.LastIndex(name, "/")]
+		name := strings.Join(ss[2:len(ss)-2], "/")
 		app := meta.MicroAPP{}
 		json.Unmarshal([]byte(v), &app)
-		bs.register(name, app)
+		w.register(name, app)
 	}
 
 	return nil
-}
-
-//unregister 如果etcd中事务是删除，这里就去管理处删除.
-func (bs *watcher) unregister(name, host string, port int) {
-	bs.mu.Lock()
-	defer bs.mu.Unlock()
-
-	apps, ok := bs.apps[name]
-	if !ok {
-		log.Debugf("cache app:%s not found", name)
-		return
-	}
-
-	for i, app := range apps {
-		if app.Host == host && app.Port == port {
-			log.Infof("remove app:%s, addr:%v:%v", name, host, port)
-			//只有他自己，直接删除了.
-			if len(apps) == 1 {
-				delete(bs.apps, name)
-				return
-			}
-			ns := []meta.MicroAPP{}
-			ns = append(ns, apps[:i]...)
-			ns = append(ns, apps[i+1:]...)
-			bs.apps[name] = ns
-			return
-		}
-	}
 }
 
 type managerClient struct {
@@ -178,7 +146,7 @@ type docObject struct {
 	Methods map[string]docMethod
 }
 
-func (bs *watcher) parseDocument(app meta.MicroAPP) error {
+func (w *watcher) parseDocument(backend string, app meta.MicroAPP) error {
 	url := fmt.Sprintf("http://%s:%d/document/", app.Host, app.Port)
 	buf, err := client.New(httpConnectTimeout).Get(url, nil, nil)
 	if err != nil {
@@ -204,7 +172,7 @@ func (bs *watcher) parseDocument(app meta.MicroAPP) error {
 
 	for ok, ov := range doc {
 		for mk := range ov.Methods {
-			mc.interfaceRegister(projectID, ok+"_"+mk, mk, ov.URL, ov.URL)
+			mc.interfaceRegister(projectID, ok+"_"+mk, mk, ov.URL, backend)
 		}
 	}
 
@@ -212,33 +180,23 @@ func (bs *watcher) parseDocument(app meta.MicroAPP) error {
 }
 
 //register 到管理处添加接口, 肯定是多个Distributor同时上报的，所以添加操作要指定版本信息.
-func (bs *watcher) register(name string, app meta.MicroAPP) {
-	bs.mu.Lock()
-	defer bs.mu.Unlock()
+func (w *watcher) register(backend string, app meta.MicroAPP) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 
-	apps, ok := bs.apps[name]
-	if !ok {
-		bs.apps[name] = []meta.MicroAPP{app}
-		log.Debugf("new name:%s, app:%+v", name, app)
-		bs.parseDocument(app)
+	if _, ok := w.apps[backend]; ok {
+		log.Debugf("app:%+v exist", app)
 		return
 	}
 
-	for _, o := range apps {
-		if o.Host == app.Host && o.Port == app.Port {
-			log.Errorf("invalid app:%v, apps:%#v", app, apps)
-			return
-		}
-	}
-
-	bs.apps[name] = append(apps, app)
-
-	log.Debugf("new name:%s, add app:%+v", name, app)
+	w.apps[backend] = app
+	w.parseDocument(backend, app)
+	log.Debugf("new backend:%s, app:%+v", backend, app)
 	return
 }
 
-func (bs *watcher) stop() {
-	bs.etcd.Close()
+func (w *watcher) stop() {
+	w.etcd.Close()
 }
 
 func parseProjectID(key string) (int64, error) {
