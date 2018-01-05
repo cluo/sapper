@@ -2,20 +2,16 @@ package repeater
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/coreos/etcd/mvcc/mvccpb"
-	"github.com/dearcode/crab/http/client"
-	"github.com/dearcode/crab/http/server"
+	"github.com/coreos/etcd/clientv3"
 	"github.com/juju/errors"
 	"github.com/zssky/log"
 
 	"github.com/dearcode/sapper/meta"
 	"github.com/dearcode/sapper/repeater/config"
-	"github.com/dearcode/sapper/util"
 	"github.com/dearcode/sapper/util/etcd"
 )
 
@@ -39,9 +35,11 @@ func newBackendService() (*backendService, error) {
 }
 
 func (bs *backendService) start() {
+	ec := make(chan clientv3.Event)
+
 	for {
-		log.Debugf("begin watch key:%s", apigatePrefix)
-		for _, e := range bs.etcd.WatchPrefix(apigatePrefix) {
+		go bs.etcd.WatchPrefix(apigatePrefix, ec)
+		for e := range ec {
 			// /api/dbs/dbfree/handler/Fore/192.168.180.102/21638
 			ss := strings.Split(string(e.Kv.Key), "/")
 			if len(ss) < 4 {
@@ -53,7 +51,7 @@ func (bs *backendService) start() {
 			name := string(e.Kv.Key)
 			name = name[4:strings.LastIndex(name, "/")]
 			name = name[:strings.LastIndex(name, "/")]
-			if e.Type == mvccpb.DELETE {
+			if e.Type == clientv3.EventTypeDelete {
 				port, _ := strconv.Atoi(ss[len(ss)-1])
 				bs.unregister(name, ss[len(ss)-2], port)
 				continue
@@ -120,97 +118,6 @@ func (bs *backendService) unregister(name, host string, port int) {
 	}
 }
 
-type managerClient struct {
-}
-
-func (mc *managerClient) interfaceRegister(projectID int64, name, method, path, backend string) error {
-	url := fmt.Sprintf("%sinterface/register/", config.Repeater.Manager.URL)
-	req := struct {
-		Name      string
-		ProjectID int64
-		Path      string
-		Method    server.Method
-		Backend   string
-	}{
-		Name:      name,
-		ProjectID: projectID,
-		Path:      path,
-		Backend:   backend,
-		Method:    server.NewMethod(method),
-	}
-
-	resp := struct {
-		Status  int
-		Data    int
-		Message string
-	}{}
-
-	if err := client.New(config.Repeater.Server.Timeout).PostJSON(url, nil, req, &resp); err != nil {
-		return errors.Annotatef(err, url)
-	}
-
-	if resp.Status != 0 {
-		return errors.New(resp.Message)
-	}
-
-	log.Debugf("register success, id:%v", resp.Data)
-
-	return nil
-}
-
-const (
-	httpConnectTimeout = 60
-)
-
-type docField struct {
-	Name     string
-	Type     string
-	Required bool
-	Comment  string
-}
-
-type docMethod struct {
-	Request map[string]docField
-}
-
-type docObject struct {
-	URL     string
-	Methods map[string]docMethod
-}
-
-func (bs *backendService) parseDocument(app meta.MicroAPP) error {
-	url := fmt.Sprintf("http://%s:%d/document/", app.Host, app.Port)
-	buf, err := client.New(httpConnectTimeout).Get(url, nil, nil)
-	if err != nil {
-		return errors.Trace(err)
-	}
-
-	var doc map[string]docObject
-
-	if err = json.Unmarshal(buf, &doc); err != nil {
-		log.Errorf("Unmarshal doc:%s error:%v", buf, err)
-		return errors.Annotatef(err, "%s", buf)
-	}
-
-	log.Debugf("doc:%+v", doc)
-
-	projectID, err := parseProjectID(app.ServiceKey)
-	if err != nil {
-		log.Errorf("parseProjectID:%s error:%v", app.ServiceKey, err)
-		return errors.Annotatef(err, app.ServiceKey)
-	}
-
-	mc := managerClient{}
-
-	for ok, ov := range doc {
-		for mk := range ov.Methods {
-			mc.interfaceRegister(projectID, ok+"_"+mk, mk, ov.URL, ov.URL)
-		}
-	}
-
-	return nil
-}
-
 //register 到管理处添加接口, 肯定是多个repeater同时上报的，所以添加操作要指定版本信息.
 func (bs *backendService) register(name string, app meta.MicroAPP) {
 	bs.mu.Lock()
@@ -220,7 +127,6 @@ func (bs *backendService) register(name string, app meta.MicroAPP) {
 	if !ok {
 		bs.apps[name] = []meta.MicroAPP{app}
 		log.Debugf("new name:%s, app:%+v", name, app)
-		bs.parseDocument(app)
 		return
 	}
 
@@ -252,22 +158,4 @@ func (bs *backendService) getMicroAPPs(name string) ([]meta.MicroAPP, error) {
 
 func (bs *backendService) stop() {
 	bs.etcd.Close()
-}
-
-func parseProjectID(key string) (int64, error) {
-	aesKey := []byte(config.Repeater.Server.SecretKey)
-	aesKey = append(aesKey, []byte(strings.Repeat("\x00", 8-len(aesKey)%8))...)
-
-	buf, err := util.AesDecrypt(key, aesKey)
-	if err != nil {
-		return 0, errors.Trace(err)
-	}
-
-	var id int64
-	_, err = fmt.Sscanf(string(buf), "%x.", &id)
-	if err != nil {
-		return 0, errors.Trace(err)
-	}
-
-	return id, nil
 }

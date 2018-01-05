@@ -102,18 +102,19 @@ func (e *Client) CAS(cmpKey, cmpValue, key, value string) error {
 }
 
 //WatchPrefix 监控指定前缀.
-func (e *Client) WatchPrefix(key string) []*clientv3.Event {
-	//TODO 这个要改成回调函数方式执行
+func (e *Client) WatchPrefix(key string, ec chan clientv3.Event) {
 	watcher := clientv3.NewWatcher(e.client)
 	defer watcher.Close()
 
-	resp := <-watcher.Watch(e.client.Ctx(), key, clientv3.WithPrefix())
-
-	if resp.Canceled {
-		return nil
+	for resp := range watcher.Watch(e.client.Ctx(), key, clientv3.WithPrefix()) {
+		if resp.Canceled {
+			return
+		}
+		log.Debugf("resp:%+v", resp)
+		for _, e := range resp.Events {
+			ec <- *e
+		}
 	}
-
-	return resp.Events
 }
 
 //Put 写.

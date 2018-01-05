@@ -80,13 +80,16 @@ func (s *Service) Init() {
 func (s *Service) Register(obj interface{}) error {
 	t := reflect.TypeOf(obj)
 	name := t.Name()
+	pkg := t.PkgPath()
 
 	//不能脱壳，脱壳后取不到method.
 	if t.Kind() == reflect.Ptr {
 		name = t.Elem().Name()
+		pkg = t.Elem().PkgPath()
 	}
 
-	url := "/" + name
+	url := pkg + "/" + name
+	url = url[strings.Index(url, "/"):]
 
 	for _, k := range []string{"Get", "Post", "Put", "Delete"} {
 		if m, ok := t.MethodByName(k); ok {
